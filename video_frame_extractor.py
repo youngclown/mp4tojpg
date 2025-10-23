@@ -20,6 +20,7 @@ class VideoFrameExtractor:
         # 동영상 합치기용 변수
         self.video1_path = None
         self.video2_path = None
+        self.merge_output_path = None
 
         self.setup_ui()
 
@@ -123,6 +124,15 @@ class VideoFrameExtractor:
         self.video2_label.pack(side="left", fill="x", expand=True)
 
         ttk.Button(merge_frame2, text="파일 선택", command=self.select_video2).pack(side="right")
+
+        # 저장 경로 프레임
+        merge_output_frame = ttk.LabelFrame(parent, text="저장 경로", padding=10)
+        merge_output_frame.pack(fill="x", padx=10, pady=5)
+
+        self.merge_output_label = ttk.Label(merge_output_frame, text="첫 번째 동영상과 같은 폴더에 저장")
+        self.merge_output_label.pack(side="left", fill="x", expand=True)
+
+        ttk.Button(merge_output_frame, text="경로 변경", command=self.select_merge_output).pack(side="right")
 
         # 음성 옵션 선택
         audio_option_frame = ttk.LabelFrame(parent, text="음성 옵션", padding=10)
@@ -355,6 +365,10 @@ class VideoFrameExtractor:
             self.video1_path = file_path
             self.video1_label.config(text=Path(file_path).name)
 
+            # 기본 저장 경로 설정
+            if not self.merge_output_path:
+                self.merge_output_path = str(Path(file_path).parent)
+
     def select_video2(self):
         file_path = filedialog.askopenfilename(
             title="두 번째 MP4 파일 선택",
@@ -365,12 +379,49 @@ class VideoFrameExtractor:
             self.video2_path = file_path
             self.video2_label.config(text=Path(file_path).name)
 
+    def select_merge_output(self):
+        folder = filedialog.askdirectory(title="저장 폴더 선택")
+        if folder:
+            self.merge_output_path = folder
+            self.merge_output_label.config(text=folder)
+
+    def generate_output_filename(self):
+        """두 파일명을 합쳐서 출력 파일명 생성, 중복 시 숫자 증가"""
+        if not self.merge_output_path:
+            messagebox.showerror("오류", "저장 경로를 선택하세요")
+            return None
+
+        # 두 동영상의 파일명 (확장자 제외)
+        name1 = Path(self.video1_path).stem
+        name2 = Path(self.video2_path).stem
+
+        # 합친 기본 파일명
+        base_name = f"{name1}_{name2}"
+        output_file = os.path.join(self.merge_output_path, f"{base_name}.mp4")
+
+        # 파일이 존재하면 숫자 증가
+        counter = 1
+        while os.path.exists(output_file):
+            output_file = os.path.join(self.merge_output_path, f"{base_name}_{counter:03d}.mp4")
+            counter += 1
+
+        return output_file
+
     def merge_videos(self):
         if not self.video1_path or not self.video2_path:
             messagebox.showerror("오류", "두 개의 동영상 파일을 모두 선택하세요")
             return
 
+        if not self.merge_output_path:
+            messagebox.showerror("오류", "저장 경로를 선택하세요")
+            return
+
         try:
+            # 출력 파일명 생성
+            output_file = self.generate_output_filename()
+            if not output_file:
+                return
+
             # 첫 번째 동영상 열기
             cap1 = cv2.VideoCapture(self.video1_path)
             cap2 = cv2.VideoCapture(self.video2_path)
@@ -386,10 +437,6 @@ class VideoFrameExtractor:
             width2 = int(cap2.get(cv2.CAP_PROP_FRAME_WIDTH))
             height2 = int(cap2.get(cv2.CAP_PROP_FRAME_HEIGHT))
             frames2 = int(cap2.get(cv2.CAP_PROP_FRAME_COUNT))
-
-            # 출력 파일명 생성
-            output_dir = str(Path(self.video1_path).parent)
-            output_file = os.path.join(output_dir, "merged_video.mp4")
 
             # FPS와 해상도 통일 (첫 번째 동영상 기준)
             target_fps = fps1
