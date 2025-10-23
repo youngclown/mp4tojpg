@@ -9,7 +9,7 @@ import numpy as np
 class VideoFrameExtractor:
     def __init__(self, root):
         self.root = root
-        self.root.title("MP4 프레임 추출기")
+        self.root.title("MP4 프레임 추출기 & 동영상 합치기")
         self.root.geometry("600x500")
 
         self.video_path = None
@@ -17,11 +17,30 @@ class VideoFrameExtractor:
         self.fps = 0
         self.total_frames = 0
 
+        # 동영상 합치기용 변수
+        self.video1_path = None
+        self.video2_path = None
+
         self.setup_ui()
 
     def setup_ui(self):
+        # 탭 생성
+        notebook = ttk.Notebook(self.root)
+        notebook.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # 프레임 추출 탭
+        extract_tab = ttk.Frame(notebook)
+        notebook.add(extract_tab, text="프레임 추출")
+        self.setup_extract_tab(extract_tab)
+
+        # 동영상 합치기 탭
+        merge_tab = ttk.Frame(notebook)
+        notebook.add(merge_tab, text="동영상 합치기")
+        self.setup_merge_tab(merge_tab)
+
+    def setup_extract_tab(self, parent):
         # 파일 선택 프레임
-        file_frame = ttk.LabelFrame(self.root, text="동영상 파일 선택", padding=10)
+        file_frame = ttk.LabelFrame(parent, text="동영상 파일 선택", padding=10)
         file_frame.pack(fill="x", padx=10, pady=5)
 
         self.file_label = ttk.Label(file_frame, text="선택된 파일 없음")
@@ -30,14 +49,14 @@ class VideoFrameExtractor:
         ttk.Button(file_frame, text="파일 선택", command=self.select_file).pack(side="right")
 
         # 동영상 정보 프레임
-        info_frame = ttk.LabelFrame(self.root, text="동영상 정보", padding=10)
+        info_frame = ttk.LabelFrame(parent, text="동영상 정보", padding=10)
         info_frame.pack(fill="x", padx=10, pady=5)
 
         self.info_label = ttk.Label(info_frame, text="파일을 선택하세요")
         self.info_label.pack()
 
         # 추출 모드 선택
-        mode_frame = ttk.LabelFrame(self.root, text="추출 모드", padding=10)
+        mode_frame = ttk.LabelFrame(parent, text="추출 모드", padding=10)
         mode_frame.pack(fill="x", padx=10, pady=5)
 
         self.mode_var = tk.StringVar(value="last")
@@ -54,7 +73,7 @@ class VideoFrameExtractor:
                        value="all", command=self.update_mode).pack(anchor="w")
 
         # 입력 프레임
-        input_frame = ttk.LabelFrame(self.root, text="추출 설정", padding=10)
+        input_frame = ttk.LabelFrame(parent, text="추출 설정", padding=10)
         input_frame.pack(fill="x", padx=10, pady=5)
 
         self.input_label = ttk.Label(input_frame, text="")
@@ -65,7 +84,7 @@ class VideoFrameExtractor:
         self.input_entry.config(state="disabled")
 
         # 저장 경로 프레임
-        output_frame = ttk.LabelFrame(self.root, text="저장 경로", padding=10)
+        output_frame = ttk.LabelFrame(parent, text="저장 경로", padding=10)
         output_frame.pack(fill="x", padx=10, pady=5)
 
         self.output_label = ttk.Label(output_frame, text="동영상과 같은 폴더에 저장")
@@ -76,15 +95,56 @@ class VideoFrameExtractor:
         self.output_path = None
 
         # 실행 버튼
-        ttk.Button(self.root, text="프레임 추출", command=self.extract_frames,
+        ttk.Button(parent, text="프레임 추출", command=self.extract_frames,
                   style="Accent.TButton").pack(pady=20)
 
         # 진행 상태
-        self.progress_label = ttk.Label(self.root, text="")
+        self.progress_label = ttk.Label(parent, text="")
         self.progress_label.pack()
 
-        self.progress = ttk.Progressbar(self.root, mode='determinate')
+        self.progress = ttk.Progressbar(parent, mode='determinate')
         self.progress.pack(fill="x", padx=10, pady=5)
+
+    def setup_merge_tab(self, parent):
+        # 첫 번째 동영상 선택
+        merge_frame1 = ttk.LabelFrame(parent, text="첫 번째 동영상", padding=10)
+        merge_frame1.pack(fill="x", padx=10, pady=5)
+
+        self.video1_label = ttk.Label(merge_frame1, text="선택된 파일 없음")
+        self.video1_label.pack(side="left", fill="x", expand=True)
+
+        ttk.Button(merge_frame1, text="파일 선택", command=self.select_video1).pack(side="right")
+
+        # 두 번째 동영상 선택
+        merge_frame2 = ttk.LabelFrame(parent, text="두 번째 동영상", padding=10)
+        merge_frame2.pack(fill="x", padx=10, pady=5)
+
+        self.video2_label = ttk.Label(merge_frame2, text="선택된 파일 없음")
+        self.video2_label.pack(side="left", fill="x", expand=True)
+
+        ttk.Button(merge_frame2, text="파일 선택", command=self.select_video2).pack(side="right")
+
+        # 음성 옵션 선택
+        audio_option_frame = ttk.LabelFrame(parent, text="음성 옵션", padding=10)
+        audio_option_frame.pack(fill="x", padx=10, pady=5)
+
+        self.include_audio_var = tk.BooleanVar(value=False)
+
+        ttk.Radiobutton(audio_option_frame, text="동영상만 (음성 없음)",
+                       variable=self.include_audio_var, value=False).pack(anchor="w")
+        ttk.Label(audio_option_frame, text="※ OpenCV는 음성을 지원하지 않습니다",
+                 foreground="gray").pack(anchor="w", padx=20)
+
+        # 합치기 실행 버튼
+        ttk.Button(parent, text="동영상 합치기", command=self.merge_videos,
+                  style="Accent.TButton").pack(pady=20)
+
+        # 진행 상태
+        self.merge_progress_label = ttk.Label(parent, text="")
+        self.merge_progress_label.pack()
+
+        self.merge_progress = ttk.Progressbar(parent, mode='determinate')
+        self.merge_progress.pack(fill="x", padx=10, pady=5)
 
     def select_file(self):
         file_path = filedialog.askopenfilename(
@@ -284,6 +344,132 @@ class VideoFrameExtractor:
                 self.root.update_idletasks()
 
         self.progress_label.config(text=f"완료: {count}개 프레임 저장됨")
+
+    def select_video1(self):
+        file_path = filedialog.askopenfilename(
+            title="첫 번째 MP4 파일 선택",
+            filetypes=[("MP4 파일", "*.mp4"), ("모든 파일", "*.*")]
+        )
+
+        if file_path:
+            self.video1_path = file_path
+            self.video1_label.config(text=Path(file_path).name)
+
+    def select_video2(self):
+        file_path = filedialog.askopenfilename(
+            title="두 번째 MP4 파일 선택",
+            filetypes=[("MP4 파일", "*.mp4"), ("모든 파일", "*.*")]
+        )
+
+        if file_path:
+            self.video2_path = file_path
+            self.video2_label.config(text=Path(file_path).name)
+
+    def merge_videos(self):
+        if not self.video1_path or not self.video2_path:
+            messagebox.showerror("오류", "두 개의 동영상 파일을 모두 선택하세요")
+            return
+
+        try:
+            # 첫 번째 동영상 열기
+            cap1 = cv2.VideoCapture(self.video1_path)
+            cap2 = cv2.VideoCapture(self.video2_path)
+
+            # 첫 번째 동영상 정보 가져오기
+            fps1 = cap1.get(cv2.CAP_PROP_FPS)
+            width1 = int(cap1.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height1 = int(cap1.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            frames1 = int(cap1.get(cv2.CAP_PROP_FRAME_COUNT))
+
+            # 두 번째 동영상 정보 가져오기
+            fps2 = cap2.get(cv2.CAP_PROP_FPS)
+            width2 = int(cap2.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height2 = int(cap2.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            frames2 = int(cap2.get(cv2.CAP_PROP_FRAME_COUNT))
+
+            # 출력 파일명 생성
+            output_dir = str(Path(self.video1_path).parent)
+            output_file = os.path.join(output_dir, "merged_video.mp4")
+
+            # FPS와 해상도 통일 (첫 번째 동영상 기준)
+            target_fps = fps1
+            target_size = (width1, height1)
+
+            # VideoWriter 생성
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(output_file, fourcc, target_fps, target_size)
+
+            total_frames = frames1 + frames2
+            processed_frames = 0
+
+            # 첫 번째 동영상 처리
+            self.merge_progress_label.config(text="첫 번째 동영상 처리 중...")
+            while True:
+                ret, frame = cap1.read()
+                if not ret:
+                    break
+
+                # 해상도가 다르면 리사이즈
+                if frame.shape[1] != width1 or frame.shape[0] != height1:
+                    frame = cv2.resize(frame, target_size)
+
+                out.write(frame)
+                processed_frames += 1
+
+                if processed_frames % 10 == 0:
+                    self.merge_progress['value'] = (processed_frames / total_frames) * 100
+                    self.merge_progress_label.config(text=f"진행 중: {processed_frames}/{total_frames} 프레임")
+                    self.root.update_idletasks()
+
+            cap1.release()
+
+            # 두 번째 동영상 처리
+            self.merge_progress_label.config(text="두 번째 동영상 처리 중...")
+
+            # FPS가 다르면 프레임 간격 조정
+            frame_ratio = fps2 / target_fps if fps2 > 0 else 1
+            frame_count = 0
+
+            while True:
+                ret, frame = cap2.read()
+                if not ret:
+                    break
+
+                # FPS 맞추기 위한 프레임 스킵
+                if frame_ratio != 1:
+                    if frame_count % max(1, int(frame_ratio)) != 0:
+                        frame_count += 1
+                        continue
+
+                # 해상도가 다르면 리사이즈
+                if frame.shape[1] != width1 or frame.shape[0] != height1:
+                    frame = cv2.resize(frame, target_size)
+
+                out.write(frame)
+                processed_frames += 1
+                frame_count += 1
+
+                if processed_frames % 10 == 0:
+                    self.merge_progress['value'] = (processed_frames / total_frames) * 100
+                    self.merge_progress_label.config(text=f"진행 중: {processed_frames}/{total_frames} 프레임")
+                    self.root.update_idletasks()
+
+            cap2.release()
+            out.release()
+
+            self.merge_progress['value'] = 100
+            self.merge_progress_label.config(text=f"완료! 저장 위치: {output_file}")
+            messagebox.showinfo("완료", f"동영상 합치기가 완료되었습니다!\n\n저장 위치:\n{output_file}\n\n※ OpenCV는 음성을 지원하지 않아 동영상만 합쳐집니다.")
+
+        except Exception as e:
+            messagebox.showerror("오류", f"동영상 합치기 중 오류 발생:\n{str(e)}")
+        finally:
+            if 'cap1' in locals():
+                cap1.release()
+            if 'cap2' in locals():
+                cap2.release()
+            if 'out' in locals():
+                out.release()
 
 
 def main():
